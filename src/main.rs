@@ -1,4 +1,6 @@
 mod data_loader;
+mod market;
+
 use data_loader::import_parquet;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
