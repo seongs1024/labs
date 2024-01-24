@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 polars = { version = "0.36.2", default-features = false, features = ["parquet", "fmt", "lazy"] }
+tokio = { version = "1.35.1", default-features = false, features = ["rt-multi-thread", "sync", "macros", "time"] }
