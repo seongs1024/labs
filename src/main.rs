@@ -1,9 +1,10 @@
 mod data_loader;
 mod market;
+mod mt_builder;
 mod trader;
 
 use data_loader::import_parquet;
-use market::MtBuilder;
+use mt_builder::MtBuilder;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

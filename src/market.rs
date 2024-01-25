@@ -1,8 +1,7 @@
-use crate::trader::Trader;
 use polars::prelude::*;
 use std::sync::{Arc, Mutex};
 use tokio::{
-    sync::broadcast::{self, Sender},
+    sync::broadcast::Sender,
     time::{sleep, Duration, Instant},
 };
 
@@ -74,26 +73,4 @@ impl Market<Itcp> {
 
     // async fn wait_until(time: &i64, simulation_start: &Instant, time_offset: &i64) {
     // }
-}
-
-// Market and Strategies Builder
-pub struct MtBuilder;
-
-impl MtBuilder {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(df: DataFrame, strategies: usize) -> (Market<Itcp>, Vec<Trader<Itcp>>) {
-        let (tx, rx) = broadcast::channel(1_000);
-
-        if strategies < 2 {
-            todo!();
-        }
-        let strategies: Vec<_> = (0..(strategies - 1))
-            .map(|_| tx.subscribe())
-            .chain(std::iter::once(rx))
-            .enumerate()
-            .map(|(i, rx)| Trader::new(format!("{}", i), rx))
-            .collect();
-        let market = Market::new(df, tx);
-        (market, strategies)
-    }
 }
