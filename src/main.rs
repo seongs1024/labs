@@ -17,8 +17,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         trader.recv();
     }
 
-    market.send();
+    let handle = market.send();
 
+    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+    handle.abort();
     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
     Ok(())
 }

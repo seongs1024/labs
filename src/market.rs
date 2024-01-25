@@ -1,7 +1,9 @@
 use polars::prelude::*;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::{
     sync::broadcast::Sender,
+    task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
 
@@ -12,7 +14,7 @@ use tokio::{
 //     price: f64,
 // }
 
-pub type Itcp = (usize, i64, String, f64);
+pub type Itcp = (HashMap<String, (i64, f64)>, usize, i64, String, f64);
 
 pub struct Market<MarketData> {
     df: Arc<DataFrame>,
@@ -27,10 +29,11 @@ impl Market<Itcp> {
         }
     }
 
-    pub fn send(&mut self) {
+    pub fn send(&mut self) -> JoinHandle<()> {
         let df = self.df.clone();
         let Some(tx) = self.tx.take() else { todo!() };
         tokio::spawn(async move {
+            let mut sec_codes = HashMap::new();
             let time_offset = 9 * 3_600_000_000i64;
             // simulation_start and idx need to be initialized out of time_offset
             let simulation_start = Instant::now();
@@ -47,6 +50,13 @@ impl Market<Itcp> {
                         todo!()
                     };
 
+                    // TODO: check available securities. need to deal with circuit breakers
+                    sec_codes.insert(code.to_owned(), (time, price));
+                    sec_codes = sec_codes
+                        .into_iter()
+                        .filter(|(_, (t, _))| time - t < 1_000_000)
+                        .collect();
+
                     // Self::wait_until(&time, &simulation_start, &time_offset).await;
                     // TODO: when backtests from the middle of opening markets(e.g. backtests from 1 p.m.)
                     let simulation_duration = Instant::now() - simulation_start;
@@ -56,7 +66,7 @@ impl Market<Itcp> {
                     }
                     let real_time = Duration::from_micros(real_time as u64);
                     sleep(real_time.saturating_sub(simulation_duration)).await;
-                    match tx.send((idx, time, code.to_string(), price)) {
+                    match tx.send((sec_codes.clone(), idx, time, code.to_owned(), price)) {
                         Ok(_) => {}
                         Err(e) => {
                             eprintln!("{}", e);
@@ -68,7 +78,7 @@ impl Market<Itcp> {
                 }
                 idx += 1;
             }
-        });
+        })
     }
 
     // async fn wait_until(time: &i64, simulation_start: &Instant, time_offset: &i64) {
