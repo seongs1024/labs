@@ -1,6 +1,6 @@
 use polars::prelude::*;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use tokio::{
     sync::broadcast::Sender,
     task::JoinHandle,
@@ -10,7 +10,7 @@ use tokio::{
 #[derive(Clone, Debug)]
 pub enum MarketEvent {
     Tick(Tick),
-    SecCodes(Vec<String>),
+    SecCodes(HashSet<String>),
 }
 
 #[derive(Clone, Debug)]
@@ -56,31 +56,32 @@ impl Market {
                     };
 
                     let tick = Tick {
-                        idx: idx,
-                        time: time,
+                        idx,
+                        time,
                         code: code.to_owned(),
-                        price: price,
+                        price,
                     };
 
                     // TODO: check available securities. need to deal with circuit breakers
-                    // sec_codes.insert(code.to_owned(), (time, price));
-                    // if sec_codes.iter().any(|(_, (t, _))| time - t > 1_000_000) {
-                    //     sec_codes = sec_codes
-                    //         .into_iter()
-                    //         .filter(|(_, (t, _))| time - t <= 1_000_000)
-                    //         .collect();
-                    //     match tx.send(MarketEvent::SecCodes(sec_codes
-                    //             .iter()
-                    //             .map(|(code, (_, _))| code.to_owned())
-                    //             .collect()
-                    //         )) {
-                    //         Ok(_) => {}
-                    //         Err(e) => {
-                    //             eprintln!("{}", e);
-                    //             break;
-                    //         }
-                    //     };
-                    // }
+                    if sec_codes.iter().any(|(_, (t, _))| time - t > 1_000_000) {
+                        sec_codes = sec_codes
+                            .into_iter()
+                            .filter(|(_, (t, _))| time - t <= 1_000_000)
+                            .collect();
+                        match tx.send(MarketEvent::SecCodes(
+                            sec_codes
+                                .iter()
+                                .map(|(code, (_, _))| code.to_owned())
+                                .collect(),
+                        )) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                eprintln!("{}", e);
+                                break;
+                            }
+                        };
+                    }
+                    sec_codes.insert(code.to_owned(), (time, price));
 
                     // Self::wait_until(&time, &simulation_start, &time_offset).await;
                     // TODO: when backtests from the middle of opening markets(e.g. backtests from 1 p.m.)

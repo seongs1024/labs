@@ -1,5 +1,5 @@
-use crate::{market::{MarketEvent, Tick}, strategy::Strategy,};
-use std::sync::{Arc, Mutex};
+use crate::{market::MarketEvent, strategy::Strategy};
+use std::sync::Arc;
 use tokio::sync::broadcast::{error::RecvError, Receiver};
 
 pub struct Trader {
@@ -19,7 +19,7 @@ impl Trader {
 
     pub fn add_strategy<S>(&mut self, strategy: S)
     where
-        S: Strategy + Send + 'static
+        S: Strategy + Send + 'static,
     {
         self.strategy = Some(Box::new(strategy));
     }
@@ -35,18 +35,14 @@ impl Trader {
         tokio::spawn(async move {
             loop {
                 match rx.recv().await {
-                    Ok(tick) => {
+                    Ok(MarketEvent::Tick(tick)) => {
                         println!("{}: {:?}", name, tick);
-                        // strategy.signal(tick);
-                    },
-                    // Ok(MarketEvent::Tick(&tick)) => {
-                    //     println!("{}: {:?}", name, tick);
-                    //     // strategy.signal(tick);
-                    // },
-                    // Ok(MarketEvent::SecCodes(&sec_codes)) => {
-                    //     println!("{}: {:?}", name, sec_codes);
-                    //     // strategy.update_sec_codes(sec_codes);
-                    // },
+                        strategy.signal(tick);
+                    }
+                    Ok(MarketEvent::SecCodes(sec_codes)) => {
+                        println!("{}: {:?}", name, sec_codes);
+                        strategy.update_sec_codes(sec_codes);
+                    }
                     Err(RecvError::Lagged(behind)) => {
                         eprintln!("{}: lagged behind {}", name, behind)
                     }

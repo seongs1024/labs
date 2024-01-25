@@ -1,12 +1,12 @@
 mod data_loader;
 mod market;
 mod mt_builder;
-mod trader;
 mod strategy;
+mod trader;
 
 use data_loader::import_parquet;
 use mt_builder::MtBuilder;
-use strategy::{StrategyA};
+use strategy::StrategyA;
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 220)]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
