@@ -1,7 +1,4 @@
-use crate::{
-    market::{Itcp, Market},
-    trader::Trader,
-};
+use crate::{market::Market, trader::Trader};
 use polars::prelude::*;
 use tokio::sync::broadcast;
 
@@ -10,7 +7,7 @@ pub struct MtBuilder;
 
 impl MtBuilder {
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(df: DataFrame, strategies: usize) -> (Market<Itcp>, Vec<Trader<Itcp>>) {
+    pub fn new(df: DataFrame, strategies: usize) -> (Market, Vec<Trader>) {
         let (tx, rx) = broadcast::channel(1_000);
 
         if strategies < 2 {

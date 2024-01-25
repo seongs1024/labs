@@ -1,14 +1,14 @@
-use crate::market::Itcp;
+use crate::market::MarketEvent;
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast::{error::RecvError, Receiver};
 
-pub struct Trader<MarketData> {
+pub struct Trader {
     name: Arc<String>,
-    rx: Option<Receiver<MarketData>>,
+    rx: Option<Receiver<MarketEvent>>,
 }
 
-impl Trader<Itcp> {
-    pub fn new(name: String, rx: Receiver<Itcp>) -> Self {
+impl Trader {
+    pub fn new(name: String, rx: Receiver<MarketEvent>) -> Self {
         Self {
             name: Arc::new(name),
             rx: Some(rx),
