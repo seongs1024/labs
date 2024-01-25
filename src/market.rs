@@ -1,7 +1,8 @@
+use crate::trader::Trader;
 use polars::prelude::*;
 use std::sync::{Arc, Mutex};
 use tokio::{
-    sync::broadcast::{self, error::RecvError, Receiver, Sender},
+    sync::broadcast::{self, Sender},
     time::{sleep, Duration, Instant},
 };
 
@@ -12,7 +13,7 @@ use tokio::{
 //     price: f64,
 // }
 
-type Itcp = (usize, i64, String, f64);
+pub type Itcp = (usize, i64, String, f64);
 
 pub struct Market<MarketData> {
     df: Arc<DataFrame>,
@@ -75,44 +76,12 @@ impl Market<Itcp> {
     // }
 }
 
-pub struct Strategy<MarketData> {
-    name: Arc<String>,
-    rx: Option<Receiver<MarketData>>,
-}
-
-impl Strategy<Itcp> {
-    pub fn new(name: String, rx: Receiver<Itcp>) -> Self {
-        Self {
-            name: Arc::new(name),
-            rx: Some(rx),
-        }
-    }
-
-    pub fn recv(&mut self) {
-        let name = self.name.clone();
-        let Some(mut rx) = self.rx.take() else {
-            todo!()
-        };
-        tokio::spawn(async move {
-            loop {
-                match rx.recv().await {
-                    Ok(market_data) => println!("{}: {:?}", name, market_data),
-                    Err(RecvError::Lagged(behind)) => {
-                        eprintln!("{}: lagged behind {}", name, behind)
-                    }
-                    Err(RecvError::Closed) => break,
-                }
-            }
-        });
-    }
-}
-
 // Market and Strategies Builder
-pub struct MsBuilder;
+pub struct MtBuilder;
 
-impl MsBuilder {
+impl MtBuilder {
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(df: DataFrame, strategies: usize) -> (Market<Itcp>, Vec<Strategy<Itcp>>) {
+    pub fn new(df: DataFrame, strategies: usize) -> (Market<Itcp>, Vec<Trader<Itcp>>) {
         let (tx, rx) = broadcast::channel(1_000);
 
         if strategies < 2 {
@@ -122,7 +91,7 @@ impl MsBuilder {
             .map(|_| tx.subscribe())
             .chain(std::iter::once(rx))
             .enumerate()
-            .map(|(i, rx)| Strategy::new(format!("{}", i), rx))
+            .map(|(i, rx)| Trader::new(format!("{}", i), rx))
             .collect();
         let market = Market::new(df, tx);
         (market, strategies)
