@@ -2,7 +2,7 @@ use polars::prelude::*;
 use std::sync::{Arc, Mutex};
 use tokio::{
     sync::broadcast::{self, error::RecvError, Receiver, Sender},
-    time::{sleep, Duration},
+    time::{sleep, Duration, Instant},
 };
 
 // struct MarketData {
@@ -31,6 +31,9 @@ impl Market<Itcp> {
         let df = self.df.clone();
         let Some(tx) = self.tx.take() else { todo!() };
         tokio::spawn(async move {
+            let time_offset = 9 * 3_600_000_000i64;
+            // simulation_start and idx need to be initialized out of time_offset
+            let simulation_start = Instant::now();
             let mut idx = 0;
             loop {
                 if let Some(tick) = df.get(idx) {
@@ -44,7 +47,15 @@ impl Market<Itcp> {
                         todo!()
                     };
 
-                    sleep(Duration::from_micros(100)).await;
+                    // Self::wait_until(&time, &simulation_start, &time_offset).await;
+                    // TODO: when backtests from the middle of opening markets(e.g. backtests from 1 p.m.)
+                    let simulation_duration = Instant::now() - simulation_start;
+                    let real_time = time - time_offset;
+                    if real_time < 0 {
+                        continue;
+                    }
+                    let real_time = Duration::from_micros(real_time as u64);
+                    sleep(real_time.saturating_sub(simulation_duration)).await;
                     match tx.send((idx, time, code.to_string(), price)) {
                         Ok(_) => {}
                         Err(e) => {
@@ -59,6 +70,9 @@ impl Market<Itcp> {
             }
         });
     }
+
+    // async fn wait_until(time: &i64, simulation_start: &Instant, time_offset: &i64) {
+    // }
 }
 
 pub struct Strategy<MarketData> {
