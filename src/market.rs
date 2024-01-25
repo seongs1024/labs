@@ -9,8 +9,16 @@ use tokio::{
 
 #[derive(Clone, Debug)]
 pub enum MarketEvent {
-    Tick(usize, i64, String, f64),
+    Tick(Tick),
     SecCodes(Vec<String>),
+}
+
+#[derive(Clone, Debug)]
+pub struct Tick {
+    pub idx: usize,
+    pub time: i64,
+    pub code: String,
+    pub price: f64,
 }
 
 pub struct Market {
@@ -47,6 +55,13 @@ impl Market {
                         todo!()
                     };
 
+                    let tick = Tick {
+                        idx: idx,
+                        time: time,
+                        code: code.to_owned(),
+                        price: price,
+                    };
+
                     // TODO: check available securities. need to deal with circuit breakers
                     // sec_codes.insert(code.to_owned(), (time, price));
                     // if sec_codes.iter().any(|(_, (t, _))| time - t > 1_000_000) {
@@ -76,7 +91,7 @@ impl Market {
                     }
                     let real_time = Duration::from_micros(real_time as u64);
                     sleep(real_time.saturating_sub(simulation_duration)).await;
-                    match tx.send(MarketEvent::Tick(idx, time, code.to_owned(), price)) {
+                    match tx.send(MarketEvent::Tick(tick)) {
                         Ok(_) => {}
                         Err(e) => {
                             eprintln!("{}", e);
