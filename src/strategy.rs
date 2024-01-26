@@ -1,4 +1,4 @@
-use crate::market::Tick;
+use crate::{logger::Event, market::Tick};
 use rand::{rngs::StdRng, seq::IteratorRandom, SeedableRng};
 use std::{
     collections::HashSet,
@@ -8,10 +8,11 @@ use std::{
 
 pub trait Strategy {
     fn update_sec_codes(&mut self, sec_codes: HashSet<String>);
-    fn signal(&mut self, tick: Tick, trader_name: &str);
+    fn signal(&mut self, tick: Tick, trader_name: &str) -> Option<Event>;
 }
 
 pub struct StrategyA {
+    name: String,
     sec_codes: HashSet<String>,
     prev_every_30min: i64,
     prev_every_10min: i64,
@@ -25,7 +26,7 @@ impl Strategy for StrategyA {
         self.sec_codes = sec_codes;
     }
 
-    fn signal(&mut self, tick: Tick, trader_name: &str) {
+    fn signal(&mut self, tick: Tick, trader_name: &str) -> Option<Event> {
         let Tick {
             time, code, price, ..
         } = tick;
@@ -42,7 +43,7 @@ impl Strategy for StrategyA {
         if buy_start_on >= 0 && self.bought.not() {
             // buy
             // println!("{}: bought {}!", trader_name, self.sec_codes.iter().choose(&mut self.rng).unwrap());
-            println!("{}: bought {}!", trader_name, code);
+            println!("{}: bought {}!", self.name, code);
             self.bought = true;
         }
         self.prev_every_30min = every_30min;
@@ -51,12 +52,15 @@ impl Strategy for StrategyA {
             // sell
         }
         self.prev_every_10min = every_10min;
+
+        None
     }
 }
 
 impl StrategyA {
-    pub fn new() -> Self {
+    pub fn new<S: AsRef<str>>(name: S) -> Self {
         Self {
+            name: name.as_ref().to_owned(),
             sec_codes: HashSet::new(),
             prev_every_30min: 0,
             prev_every_10min: 0,

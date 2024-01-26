@@ -1,4 +1,5 @@
 mod data_loader;
+mod logger;
 mod market;
 mod simulation_builder;
 mod strategy;
@@ -17,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     simulation.market.add_ticks(df);
     for trader in simulation.traders.iter_mut() {
-        trader.add_strategy(StrategyA::new());
+        trader.add_strategy(StrategyA::new("Strategy A"));
     }
 
     simulation.run();

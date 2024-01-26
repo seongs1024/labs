@@ -1,18 +1,27 @@
-use crate::{market::MarketEvent, strategy::Strategy};
+use crate::{logger::Event, market::MarketEvent, strategy::Strategy};
 use std::sync::Arc;
-use tokio::sync::broadcast::{error::RecvError, Receiver};
+use tokio::sync::{
+    broadcast::{self, error::RecvError},
+    mpsc,
+};
 
 pub struct Trader {
     name: Arc<String>,
-    rx: Option<Receiver<MarketEvent>>,
+    rx: Option<broadcast::Receiver<MarketEvent>>,
+    log_tx: Arc<mpsc::Sender<Event>>,
     strategy: Option<Box<dyn Strategy + Send>>,
 }
 
 impl Trader {
-    pub fn new(name: String, rx: Receiver<MarketEvent>) -> Self {
+    pub fn new(
+        name: String,
+        rx: broadcast::Receiver<MarketEvent>,
+        log_tx: mpsc::Sender<Event>,
+    ) -> Self {
         Self {
             name: Arc::new(name),
             rx: Some(rx),
+            log_tx: Arc::new(log_tx),
             strategy: None,
         }
     }
@@ -29,6 +38,7 @@ impl Trader {
         let Some(mut rx) = self.rx.take() else {
             todo!()
         };
+        let log_tx = self.log_tx.clone();
         let Some(mut strategy) = self.strategy.take() else {
             todo!()
         };
@@ -36,11 +46,16 @@ impl Trader {
             loop {
                 match rx.recv().await {
                     Ok(MarketEvent::Tick(tick)) => {
-                        println!("{}: {:?}", name, tick);
-                        strategy.signal(tick, &name);
+                        // println!("{}: {:?}", name, tick);
+                        match strategy.signal(tick, &name) {
+                            Some(event) => {
+                                log_tx.send(event).await;
+                            }
+                            _ => {}
+                        };
                     }
                     Ok(MarketEvent::SecCodes(sec_codes)) => {
-                        println!("{}: {:?}", name, sec_codes);
+                        // println!("{}: {:?}", name, sec_codes);
                         strategy.update_sec_codes(sec_codes);
                     }
                     Err(RecvError::Lagged(behind)) => {
