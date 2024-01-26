@@ -37,7 +37,7 @@ impl Trader {
                 match rx.recv().await {
                     Ok(MarketEvent::Tick(tick)) => {
                         println!("{}: {:?}", name, tick);
-                        strategy.signal(tick);
+                        strategy.signal(tick, &name);
                     }
                     Ok(MarketEvent::SecCodes(sec_codes)) => {
                         println!("{}: {:?}", name, sec_codes);
