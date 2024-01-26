@@ -50,12 +50,13 @@ impl Simulation {
         if self.market.is_ok().not() || self.traders.iter().any(|trader| trader.is_ok().not()) {
             return;
         }
+        self.simulation_handlers.push(self.logger.recv());
+
         for trader in self.traders.iter_mut() {
             trader.recv();
         }
 
         self.simulation_handlers.push(self.market.send());
-        self.simulation_handlers.push(self.logger.recv());
     }
 
     pub fn stop(&mut self) {

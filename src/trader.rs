@@ -8,7 +8,7 @@ use tokio::sync::{
 pub struct Trader {
     name: Arc<String>,
     rx: Option<broadcast::Receiver<MarketEvent>>,
-    log_tx: Arc<mpsc::Sender<Event>>,
+    log_tx: Option<mpsc::Sender<Event>>,
     strategy: Option<Box<dyn Strategy + Send>>,
 }
 
@@ -21,7 +21,7 @@ impl Trader {
         Self {
             name: Arc::new(name),
             rx: Some(rx),
-            log_tx: Arc::new(log_tx),
+            log_tx: Some(log_tx),
             strategy: None,
         }
     }
@@ -38,7 +38,9 @@ impl Trader {
         let Some(mut rx) = self.rx.take() else {
             todo!()
         };
-        let log_tx = self.log_tx.clone();
+        let Some(log_tx) = self.log_tx.take() else {
+            todo!()
+        };
         let Some(mut strategy) = self.strategy.take() else {
             todo!()
         };
@@ -47,7 +49,13 @@ impl Trader {
                 match rx.recv().await {
                     Ok(MarketEvent::Tick(tick)) => {
                         // println!("{}: {:?}", name, tick);
-                        match strategy.signal(tick, &name) {
+                        match strategy.buy_signal(&tick, &name) {
+                            Some(event) => {
+                                log_tx.send(event).await;
+                            }
+                            _ => {}
+                        };
+                        match strategy.sell_signal(&tick, &name) {
                             Some(event) => {
                                 log_tx.send(event).await;
                             }

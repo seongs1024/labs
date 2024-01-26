@@ -3,9 +3,15 @@ use tokio::{sync::mpsc::Receiver, task::JoinHandle};
 
 #[derive(Debug)]
 pub enum Event {
+    OpenOrder(Side, String, i64, String, f64), //(Side, trader_id, time, code, quantity)
+    Filled(Side, String, i64, String, f64, f64), //(Side, trader_id, time, code, quantity, price)
+    Nav(String, f64),                          //(trader_id, nav)
+}
+
+#[derive(Debug)]
+pub enum Side {
     Buy,
     Sell,
-    Nav,
 }
 
 pub struct Logger {
@@ -23,7 +29,7 @@ impl Logger {
         };
         tokio::spawn(async move {
             while let Some(e) = rx.recv().await {
-                println!("got = {:?}", e);
+                println!("{:?}", e);
             }
         })
     }

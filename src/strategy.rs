@@ -1,4 +1,7 @@
-use crate::{logger::Event, market::Tick};
+use crate::{
+    logger::{Event, Side},
+    market::Tick,
+};
 use rand::{rngs::StdRng, seq::IteratorRandom, SeedableRng};
 use std::{
     collections::HashSet,
@@ -8,7 +11,8 @@ use std::{
 
 pub trait Strategy {
     fn update_sec_codes(&mut self, sec_codes: HashSet<String>);
-    fn signal(&mut self, tick: Tick, trader_name: &str) -> Option<Event>;
+    fn buy_signal(&mut self, tick: &Tick, trader_name: &str) -> Option<Event>;
+    fn sell_signal(&mut self, tick: &Tick, trader_name: &str) -> Option<Event>;
 }
 
 pub struct StrategyA {
@@ -26,27 +30,45 @@ impl Strategy for StrategyA {
         self.sec_codes = sec_codes;
     }
 
-    fn signal(&mut self, tick: Tick, trader_name: &str) -> Option<Event> {
+    fn buy_signal(&mut self, tick: &Tick, trader_name: &str) -> Option<Event> {
         let Tick {
             time, code, price, ..
         } = tick;
         self.sec_codes.insert(code.clone());
 
         let buy_start_on = time - 9 * 3_600_000_000i64;
-        let sell_start_on = time - (14 * 3_600_000_000i64 + 30 * 60_000_000i64);
-        let every_30min = buy_start_on % (30 * 60_000_000i64);
-        let every_10min = sell_start_on % (10 * 60_000_000i64);
+        // let every_30min = buy_start_on % (30 * 60_000_000i64);
+        let every_30min = buy_start_on % (5_000_000i64);
 
         if buy_start_on >= 0 && every_30min < self.prev_every_30min {
             self.bought = false;
         }
+        self.prev_every_30min = every_30min;
+
         if buy_start_on >= 0 && self.bought.not() {
             // buy
-            // println!("{}: bought {}!", trader_name, self.sec_codes.iter().choose(&mut self.rng).unwrap());
-            println!("{}: bought {}!", self.name, code);
+            let candidate = self.sec_codes.iter().choose(&mut self.rng).unwrap();
             self.bought = true;
+            return Some(Event::OpenOrder(
+                Side::Buy,
+                trader_name.to_owned(),
+                *time,
+                candidate.to_owned(),
+                100.0,
+            ));
         }
-        self.prev_every_30min = every_30min;
+
+        None
+    }
+
+    fn sell_signal(&mut self, tick: &Tick, trader_name: &str) -> Option<Event> {
+        let Tick {
+            time, code, price, ..
+        } = tick;
+        self.sec_codes.insert(code.clone());
+
+        let sell_start_on = time - (14 * 3_600_000_000i64 + 30 * 60_000_000i64);
+        let every_10min = sell_start_on % (10 * 60_000_000i64);
 
         if sell_start_on >= 0 && every_10min < self.prev_every_10min {
             // sell
@@ -66,7 +88,7 @@ impl StrategyA {
             prev_every_10min: 0,
             bought: false,
             sold: false,
-            rng: StdRng::seed_from_u64(0),
+            rng: StdRng::seed_from_u64(rand::random()),
         }
     }
 }
