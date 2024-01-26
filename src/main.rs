@@ -1,11 +1,11 @@
 mod data_loader;
 mod market;
-mod mt_builder;
+mod simulation_builder;
 mod strategy;
 mod trader;
 
 use data_loader::import_parquet;
-use mt_builder::MtBuilder;
+use simulation_builder::SimulationBuilder;
 use strategy::StrategyA;
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 220)]
@@ -13,17 +13,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let df = import_parquet("data/kospi_tick.parquet")?;
     // let df = df.slice(0, 10);
 
-    let (mut market, traders) = MtBuilder::new(df, 200);
+    let mut simulation = SimulationBuilder::new(200);
 
-    for mut trader in traders {
+    simulation.market.add_ticks(df);
+    for trader in simulation.traders.iter_mut() {
         trader.add_strategy(StrategyA::new());
-        trader.recv();
     }
 
-    let handle = market.send();
-
+    simulation.run();
     tokio::time::sleep(tokio::time::Duration::from_secs(100)).await;
-    handle.abort();
+    simulation.stop();
     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
     Ok(())
 }

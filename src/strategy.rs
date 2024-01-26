@@ -1,13 +1,9 @@
 use crate::market::Tick;
+use rand::{rngs::StdRng, seq::IteratorRandom, SeedableRng};
 use std::{
     collections::HashSet,
     ops::Not,
     sync::{Arc, Mutex},
-};
-use rand::{
-    rngs::StdRng,
-    SeedableRng,
-    seq::IteratorRandom,
 };
 
 pub trait Strategy {
@@ -31,10 +27,7 @@ impl Strategy for StrategyA {
 
     fn signal(&mut self, tick: Tick, trader_name: &str) {
         let Tick {
-            time,
-            code,
-            price,
-            ..
+            time, code, price, ..
         } = tick;
         self.sec_codes.insert(code.clone());
 
@@ -53,12 +46,11 @@ impl Strategy for StrategyA {
             self.bought = true;
         }
         self.prev_every_30min = every_30min;
-        
+
         if sell_start_on >= 0 && every_10min < self.prev_every_10min {
             // sell
         }
         self.prev_every_10min = every_10min;
-
     }
 }
 

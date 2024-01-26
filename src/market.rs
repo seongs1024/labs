@@ -22,20 +22,26 @@ pub struct Tick {
 }
 
 pub struct Market {
-    df: Arc<DataFrame>,
+    df: Option<Arc<DataFrame>>,
     tx: Option<Sender<MarketEvent>>,
 }
 
 impl Market {
-    pub fn new(df: DataFrame, tx: Sender<MarketEvent>) -> Self {
+    pub fn new(tx: Sender<MarketEvent>) -> Self {
         Self {
-            df: Arc::new(df),
+            df: None,
             tx: Some(tx),
         }
     }
 
+    pub fn add_ticks(&mut self, df: DataFrame) {
+        self.df = Some(Arc::new(df));
+    }
+
     pub fn send(&mut self) -> JoinHandle<()> {
-        let df = self.df.clone();
+        let Some(df) = self.df.clone().take() else {
+            todo!()
+        };
         let Some(tx) = self.tx.take() else { todo!() };
         tokio::spawn(async move {
             let mut sec_codes: HashMap<String, (i64, f64)> = HashMap::new();
@@ -109,4 +115,8 @@ impl Market {
 
     // async fn wait_until(time: &i64, simulation_start: &Instant, time_offset: &i64) {
     // }
+
+    pub fn is_ok(&self) -> bool {
+        self.df.is_some() && self.tx.is_some()
+    }
 }

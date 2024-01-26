@@ -51,4 +51,8 @@ impl Trader {
             }
         });
     }
+
+    pub fn is_ok(&self) -> bool {
+        self.rx.is_some() && self.strategy.is_some()
+    }
 }
