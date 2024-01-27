@@ -38,7 +38,7 @@ impl Strategy for StrategyA {
 
         let buy_start_on = time - 9 * 3_600_000_000i64;
         // let every_30min = buy_start_on % (30 * 60_000_000i64);
-        let every_30min = buy_start_on % (5_000_000i64);
+        let every_30min = buy_start_on % (100_000i64);
 
         if buy_start_on >= 0 && every_30min < self.prev_every_30min {
             self.bought = false;

@@ -24,13 +24,15 @@ pub struct Tick {
 pub struct Market {
     df: Option<Arc<DataFrame>>,
     tx: Option<Sender<MarketEvent>>,
+    rerun: rerun::RecordingStream,
 }
 
 impl Market {
-    pub fn new(tx: Sender<MarketEvent>) -> Self {
+    pub fn new(tx: Sender<MarketEvent>, rerun: rerun::RecordingStream) -> Self {
         Self {
             df: None,
             tx: Some(tx),
+            rerun,
         }
     }
 

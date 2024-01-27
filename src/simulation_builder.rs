@@ -17,7 +17,7 @@ pub struct Simulation {
 
 impl SimulationBuilder {
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(strategies: usize) -> Simulation {
+    pub fn new(strategies: usize, rerun: rerun::RecordingStream) -> Simulation {
         let (tx, rx) = broadcast::channel(100_000);
         let (log_tx, log_rx) = mpsc::channel(100_000);
 
@@ -25,16 +25,16 @@ impl SimulationBuilder {
             todo!();
         }
         let traders: Vec<_> = (0..(strategies - 1))
-            .map(|_| (tx.subscribe(), log_tx.clone()))
+            .map(|_| (tx.subscribe(), log_tx.clone(), rerun.clone()))
             .collect();
         let traders: Vec<_> = traders
             .into_iter()
-            .chain(std::iter::once((rx, log_tx)))
+            .chain(std::iter::once((rx, log_tx, rerun.clone())))
             .enumerate()
-            .map(|(i, (rx, log_tx))| Trader::new(format!("{}", i), rx, log_tx))
+            .map(|(i, (rx, log_tx, rerun))| Trader::new(format!("{}", i), rx, log_tx, rerun))
             .collect();
-        let market = Market::new(tx);
-        let logger = Logger::new(log_rx);
+        let market = Market::new(tx, rerun.clone());
+        let logger = Logger::new(log_rx, rerun.clone());
 
         Simulation {
             simulation_handlers: Vec::new(),

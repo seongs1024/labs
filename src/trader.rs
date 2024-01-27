@@ -10,6 +10,7 @@ pub struct Trader {
     rx: Option<broadcast::Receiver<MarketEvent>>,
     log_tx: Option<mpsc::Sender<Event>>,
     strategy: Option<Box<dyn Strategy + Send>>,
+    rerun: rerun::RecordingStream,
 }
 
 impl Trader {
@@ -17,12 +18,14 @@ impl Trader {
         name: String,
         rx: broadcast::Receiver<MarketEvent>,
         log_tx: mpsc::Sender<Event>,
+        rerun: rerun::RecordingStream,
     ) -> Self {
         Self {
             name: Arc::new(name),
             rx: Some(rx),
             log_tx: Some(log_tx),
             strategy: None,
+            rerun,
         }
     }
 
