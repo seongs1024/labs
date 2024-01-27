@@ -2,7 +2,7 @@ use polars::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::{
-    sync::broadcast::Sender,
+    sync::{broadcast::Sender, RwLock},
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
@@ -10,7 +10,6 @@ use tokio::{
 #[derive(Clone, Debug)]
 pub enum MarketEvent {
     Tick(Tick),
-    SecCodes(HashSet<String>),
 }
 
 #[derive(Clone, Debug)]
@@ -21,18 +20,26 @@ pub struct Tick {
     pub price: f64,
 }
 
+pub type Securities = Arc<RwLock<HashMap<String, f64>>>;
+
 pub struct Market {
     df: Option<Arc<DataFrame>>,
     tx: Option<Sender<MarketEvent>>,
     rerun: rerun::RecordingStream,
+    sec_codes: Securities,
 }
 
 impl Market {
-    pub fn new(tx: Sender<MarketEvent>, rerun: rerun::RecordingStream) -> Self {
+    pub fn new(
+        tx: Sender<MarketEvent>,
+        rerun: rerun::RecordingStream,
+        sec_codes: Securities,
+    ) -> Self {
         Self {
             df: None,
             tx: Some(tx),
             rerun,
+            sec_codes,
         }
     }
 
@@ -45,8 +52,8 @@ impl Market {
             todo!()
         };
         let Some(tx) = self.tx.take() else { todo!() };
+        let sec_codes = self.sec_codes.clone();
         tokio::spawn(async move {
-            let mut sec_codes: HashMap<String, (i64, f64)> = HashMap::new();
             let time_offset = 9 * 3_600_000_000i64;
             // simulation_start and idx need to be initialized out of time_offset
             let simulation_start = Instant::now();
@@ -70,8 +77,6 @@ impl Market {
                         price,
                     };
 
-                    sec_codes.insert(code.to_owned(), (time, price));
-
                     // Self::wait_until(&time, &simulation_start, &time_offset).await;
                     // TODO: when backtests from the middle of opening markets(e.g. backtests from 1 p.m.)
                     let simulation_duration = Instant::now() - simulation_start;
@@ -81,6 +86,10 @@ impl Market {
                     }
                     let real_time = Duration::from_micros(real_time as u64);
                     sleep(real_time.saturating_sub(simulation_duration)).await;
+                    {
+                        let mut sc = sec_codes.write().await;
+                        (*sc).insert(code.to_owned(), price);
+                    }
                     match tx.send(MarketEvent::Tick(tick)) {
                         Ok(_) => {}
                         Err(e) => {

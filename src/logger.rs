@@ -21,7 +21,10 @@ pub struct Logger {
 
 impl Logger {
     pub fn new(rx: Receiver<Event>, rerun: rerun::RecordingStream) -> Self {
-        Self { rx: Some(rx), rerun, }
+        Self {
+            rx: Some(rx),
+            rerun,
+        }
     }
 
     pub fn recv(&mut self) -> JoinHandle<()> {
@@ -38,9 +41,12 @@ impl Logger {
                             format!("strategy/{}", trader_name),
                             &rerun::TimeSeriesScalar::new((time as f64).sin())
                                 .with_label(format!("{:?} {}", side, code)),
-                        ).unwrap();
-                    },
-                    e => { println!("{:?}", e); },
+                        )
+                        .unwrap();
+                    }
+                    e => {
+                        println!("{:?}", e);
+                    }
                 };
             }
         })

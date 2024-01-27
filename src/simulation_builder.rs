@@ -1,4 +1,8 @@
-use crate::{logger::Logger, market::Market, strategy::StrategyA, trader::Trader};
+use crate::{
+    logger::Logger,
+    market::{Market, Securities},
+    trader::Trader,
+};
 use polars::prelude::*;
 use std::ops::Not;
 use tokio::{
@@ -24,16 +28,32 @@ impl SimulationBuilder {
         if strategies < 2 {
             todo!();
         }
+
+        let sec_codes: Securities = Default::default();
         let traders: Vec<_> = (0..(strategies - 1))
-            .map(|_| (tx.subscribe(), log_tx.clone(), rerun.clone()))
+            .map(|_| {
+                (
+                    tx.subscribe(),
+                    log_tx.clone(),
+                    rerun.clone(),
+                    sec_codes.clone(),
+                )
+            })
             .collect();
         let traders: Vec<_> = traders
             .into_iter()
-            .chain(std::iter::once((rx, log_tx, rerun.clone())))
+            .chain(std::iter::once((
+                rx,
+                log_tx,
+                rerun.clone(),
+                sec_codes.clone(),
+            )))
             .enumerate()
-            .map(|(i, (rx, log_tx, rerun))| Trader::new(format!("{}", i), rx, log_tx, rerun))
+            .map(|(i, (rx, log_tx, rerun, sec_codes))| {
+                Trader::new(format!("{}", i), rx, log_tx, rerun, sec_codes)
+            })
             .collect();
-        let market = Market::new(tx, rerun.clone());
+        let market = Market::new(tx, rerun.clone(), sec_codes);
         let logger = Logger::new(log_rx, rerun.clone());
 
         Simulation {

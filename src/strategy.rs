@@ -1,6 +1,6 @@
 use crate::{
     logger::{Event, Side},
-    market::Tick,
+    market::{Securities, Tick},
 };
 use rand::{rngs::StdRng, seq::IteratorRandom, SeedableRng};
 use std::{
@@ -9,13 +9,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-pub trait Strategy {
-    fn update_sec_codes(&mut self, sec_codes: HashSet<String>);
-    fn buy_signal(&mut self, tick: &Tick, trader_name: &str) -> Option<Event>;
-    fn sell_signal(&mut self, tick: &Tick, trader_name: &str) -> Option<Event>;
-}
-
-pub struct StrategyA {
+pub struct Strategy {
     name: String,
     sec_codes: HashSet<String>,
     prev_every_30min: i64,
@@ -25,16 +19,28 @@ pub struct StrategyA {
     rng: StdRng,
 }
 
-impl Strategy for StrategyA {
-    fn update_sec_codes(&mut self, sec_codes: HashSet<String>) {
-        self.sec_codes = sec_codes;
+impl Strategy {
+    pub fn new<S: AsRef<str>>(name: S) -> Self {
+        Self {
+            name: name.as_ref().to_owned(),
+            sec_codes: HashSet::new(),
+            prev_every_30min: 0,
+            prev_every_10min: 0,
+            bought: false,
+            sold: false,
+            rng: StdRng::seed_from_u64(rand::random()),
+        }
     }
 
-    fn buy_signal(&mut self, tick: &Tick, trader_name: &str) -> Option<Event> {
+    pub async fn buy_signal(
+        &mut self,
+        tick: &Tick,
+        trader_name: &str,
+        sec_codes: &Securities,
+    ) -> Option<Event> {
         let Tick {
             time, code, price, ..
         } = tick;
-        self.sec_codes.insert(code.clone());
 
         let buy_start_on = time - 9 * 3_600_000_000i64;
         // let every_30min = buy_start_on % (30 * 60_000_000i64);
@@ -47,13 +53,20 @@ impl Strategy for StrategyA {
 
         if buy_start_on >= 0 && self.bought.not() {
             // buy
-            let candidate = self.sec_codes.iter().choose(&mut self.rng).unwrap();
+            let candidate = {
+                let sec_codes = sec_codes.read().await;
+                (*sec_codes)
+                    .keys()
+                    .choose(&mut self.rng)
+                    .unwrap()
+                    .to_owned()
+            };
             self.bought = true;
             return Some(Event::OpenOrder(
                 Side::Buy,
                 trader_name.to_owned(),
                 *time,
-                candidate.to_owned(),
+                candidate,
                 100.0,
             ));
         }
@@ -61,11 +74,15 @@ impl Strategy for StrategyA {
         None
     }
 
-    fn sell_signal(&mut self, tick: &Tick, trader_name: &str) -> Option<Event> {
+    pub async fn sell_signal(
+        &mut self,
+        tick: &Tick,
+        trader_name: &str,
+        sec_codes: &Securities,
+    ) -> Option<Event> {
         let Tick {
             time, code, price, ..
         } = tick;
-        self.sec_codes.insert(code.clone());
 
         let sell_start_on = time - (14 * 3_600_000_000i64 + 30 * 60_000_000i64);
         let every_10min = sell_start_on % (10 * 60_000_000i64);
@@ -76,19 +93,5 @@ impl Strategy for StrategyA {
         self.prev_every_10min = every_10min;
 
         None
-    }
-}
-
-impl StrategyA {
-    pub fn new<S: AsRef<str>>(name: S) -> Self {
-        Self {
-            name: name.as_ref().to_owned(),
-            sec_codes: HashSet::new(),
-            prev_every_30min: 0,
-            prev_every_10min: 0,
-            bought: false,
-            sold: false,
-            rng: StdRng::seed_from_u64(rand::random()),
-        }
     }
 }

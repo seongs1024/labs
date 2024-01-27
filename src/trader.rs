@@ -1,4 +1,8 @@
-use crate::{logger::Event, market::MarketEvent, strategy::Strategy};
+use crate::{
+    logger::Event,
+    market::{MarketEvent, Securities},
+    strategy::Strategy,
+};
 use std::sync::Arc;
 use tokio::sync::{
     broadcast::{self, error::RecvError},
@@ -9,8 +13,9 @@ pub struct Trader {
     name: Arc<String>,
     rx: Option<broadcast::Receiver<MarketEvent>>,
     log_tx: Option<mpsc::Sender<Event>>,
-    strategy: Option<Box<dyn Strategy + Send>>,
+    strategy: Option<Strategy>,
     rerun: rerun::RecordingStream,
+    sec_codes: Securities,
 }
 
 impl Trader {
@@ -19,6 +24,7 @@ impl Trader {
         rx: broadcast::Receiver<MarketEvent>,
         log_tx: mpsc::Sender<Event>,
         rerun: rerun::RecordingStream,
+        sec_codes: Securities,
     ) -> Self {
         Self {
             name: Arc::new(name),
@@ -26,14 +32,12 @@ impl Trader {
             log_tx: Some(log_tx),
             strategy: None,
             rerun,
+            sec_codes,
         }
     }
 
-    pub fn add_strategy<S>(&mut self, strategy: S)
-    where
-        S: Strategy + Send + 'static,
-    {
-        self.strategy = Some(Box::new(strategy));
+    pub fn add_strategy(&mut self, strategy: Strategy) {
+        self.strategy = Some(strategy);
     }
 
     pub fn recv(&mut self) {
@@ -47,27 +51,24 @@ impl Trader {
         let Some(mut strategy) = self.strategy.take() else {
             todo!()
         };
+        let sec_codes = self.sec_codes.clone();
         tokio::spawn(async move {
             loop {
                 match rx.recv().await {
                     Ok(MarketEvent::Tick(tick)) => {
                         // println!("{}: {:?}", name, tick);
-                        match strategy.buy_signal(&tick, &name) {
+                        match strategy.buy_signal(&tick, &name, &sec_codes).await {
                             Some(event) => {
                                 log_tx.send(event).await;
                             }
                             _ => {}
                         };
-                        match strategy.sell_signal(&tick, &name) {
+                        match strategy.sell_signal(&tick, &name, &sec_codes).await {
                             Some(event) => {
                                 log_tx.send(event).await;
                             }
                             _ => {}
                         };
-                    }
-                    Ok(MarketEvent::SecCodes(sec_codes)) => {
-                        // println!("{}: {:?}", name, sec_codes);
-                        strategy.update_sec_codes(sec_codes);
                     }
                     Err(RecvError::Lagged(behind)) => {
                         eprintln!("{}: lagged behind {}", name, behind)
