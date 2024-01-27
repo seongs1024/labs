@@ -70,25 +70,6 @@ impl Market {
                         price,
                     };
 
-                    // TODO: check available securities. need to deal with circuit breakers
-                    if sec_codes.iter().any(|(_, (t, _))| time - t > 1_000_000) {
-                        sec_codes = sec_codes
-                            .into_iter()
-                            .filter(|(_, (t, _))| time - t <= 1_000_000)
-                            .collect();
-                        match tx.send(MarketEvent::SecCodes(
-                            sec_codes
-                                .iter()
-                                .map(|(code, (_, _))| code.to_owned())
-                                .collect(),
-                        )) {
-                            Ok(_) => {}
-                            Err(e) => {
-                                eprintln!("{}", e);
-                                break;
-                            }
-                        };
-                    }
                     sec_codes.insert(code.to_owned(), (time, price));
 
                     // Self::wait_until(&time, &simulation_start, &time_offset).await;
