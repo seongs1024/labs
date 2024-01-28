@@ -39,7 +39,7 @@ impl Logger {
                         rec.set_time_nanos("order", time * 1_000);
                         rec.log(
                             format!("order/{:?}/strategy_{}/{}", side, strategy_name, trader_name),
-                            &rerun::TextLog::new(format!("{:?} {}, q: {}", side, code, quantity)),
+                            &rerun::TextLog::new(format!("strategy_{}/{} {:?} {}, q: {}", strategy_name, trader_name, side, code, quantity)),
                         )
                         .unwrap();
                     }
