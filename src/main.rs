@@ -42,13 +42,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             sell_begin: 9 * 3_600_000_000 + 1 * 60_000_000,
             sell_every: 1_000_000,
         }));
-        trader.report_nav_every(100_000);
+        trader.report_nav_every(1_000_000);
     }
 
     simulation.run();
     tokio::time::sleep(tokio::time::Duration::from_secs(100)).await;
     simulation.stop();
-    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
     Ok(())
 }
