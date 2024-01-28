@@ -38,7 +38,7 @@ impl Logger {
                     Event::OpenOrder(side, trader_name, strategy_name, time, code, quantity) => {
                         rec.set_time_nanos("order", time * 1_000);
                         rec.log(
-                            format!("order/strategy_{}/{}", strategy_name, trader_name),
+                            format!("order/{:?}/strategy_{}/{}", side, strategy_name, trader_name),
                             &rerun::TextLog::new(format!("{:?} {}, q: {}", side, code, quantity)),
                         )
                         .unwrap();

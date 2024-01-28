@@ -38,9 +38,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             start_balance: 100_000_000_000.0f64,
             dca_ratio: 0.1,
             buy_begin: 9 * 3_600_000_000,
-            buy_every: 1_000_000,
-            sell_begin: 9 * 3_600_000_000 + 1 * 60_000_000,
-            sell_every: 1_000_000,
+            buy_every: 2_000_000,
+            sell_begin: 9 * 3_600_000_000 + 10 * 1_000_000,
+            sell_every: 3_000_000,
         }));
         trader.report_nav_every(1_000_000);
     }
