@@ -111,9 +111,25 @@ impl Trader {
                             }
                             _ => {}
                         };
-                        match strategy.sell_signal(&tick, &name, &sec_codes).await {
+                        match strategy.sell_signal(&tick, &name, &stocks_held).await {
                             Some(event) => {
-                                log_tx.send(event).await;
+                                if let Event::OpenOrder(
+                                    ref side,
+                                    ref trader_name,
+                                    ref strategy_name,
+                                    time,
+                                    ref code,
+                                    quantity,
+                                ) = event
+                                {
+                                    stocks_held
+                                        .remove(code);
+                                    cash += {
+                                        let sec_codes = sec_codes.read().await;
+                                        *(*sec_codes).get(code).unwrap() * (quantity as f64)
+                                    };
+                                    log_tx.send(event).await;
+                                }
                             }
                             _ => {}
                         };

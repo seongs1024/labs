@@ -3,6 +3,7 @@ use crate::{
     market::{Securities, Tick},
 };
 use std::{
+    collections::HashMap,
     ops::{Div, Not, Rem},
     sync::{Arc, Mutex},
 };
@@ -90,19 +91,36 @@ impl Strategy {
         &mut self,
         tick: &Tick,
         trader_name: &str,
-        sec_codes: &Securities,
+        stocks_held: &HashMap<String, i64>,
     ) -> Option<Event> {
         let Tick {
             time, code, price, ..
         } = tick;
 
-        // let sell_start_on = time - (14 * 3_600_000_000i64 + 30 * 60_000_000i64);
-        // let every_10min = sell_start_on % (10 * 60_000_000i64);
+        let sell_start_on = time - self.config.sell_begin;
+        let sell_every = sell_start_on % self.config.sell_every;
 
-        // if sell_start_on >= 0 && every_10min < self.prev_every_10min {
-        //     // sell
-        // }
-        // self.prev_every_10min = every_10min;
+        if sell_start_on >= 0 && sell_every < self.prev_sell_every {
+            self.sold = false;
+        }
+        self.prev_sell_every = sell_every;
+
+        if sell_start_on >= 0 && self.sold.not() {
+            // sell
+            let (candidate, quantity) = match stocks_held.iter().next() {
+                    Some(candidate) => candidate,
+                    None => return None,
+                };
+            self.sold = true;
+            return Some(Event::OpenOrder(
+                Side::Sell,
+                trader_name.to_owned(),
+                self.config.name.to_owned(),
+                *time,
+                candidate.to_owned(),
+                *quantity,
+            ));
+        }
 
         None
     }
