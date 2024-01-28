@@ -26,22 +26,62 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     })
     .await?;
 
-    let df = import_parquet("data/kospi_tick.parquet")?;
-    // let df = df.slice(0, 10);
-
-    let mut simulation = SimulationBuilder::new(5, rec);
-
-    simulation.market.add_ticks(df);
-    for trader in simulation.traders.iter_mut() {
-        trader.add_strategy(Strategy::new(StrategyConfig {
+    let configs = vec![
+        StrategyConfig {
             name: "A".to_owned(),
             start_balance: 100_000_000_000.0f64,
             dca_ratio: 0.1,
             buy_begin: 9 * 3_600_000_000,
             buy_every: 2_000_000,
-            sell_begin: 9 * 3_600_000_000 + 10 * 1_000_000,
+            sell_begin: 9 * 3_600_000_000 + 5 * 1_000_000,
             sell_every: 3_000_000,
-        }));
+        },
+        StrategyConfig {
+            name: "B".to_owned(),
+            start_balance: 100_000_000_000.0f64,
+            dca_ratio: 0.1,
+            buy_begin: 9 * 3_600_000_000 + 10 * 1_000_000,
+            buy_every: 2_000_000,
+            sell_begin: 9 * 3_600_000_000 + 15 * 1_000_000,
+            sell_every: 3_000_000,
+        },
+        StrategyConfig {
+            name: "C".to_owned(),
+            start_balance: 100_000_000_000.0f64,
+            dca_ratio: 0.1,
+            buy_begin: 9 * 3_600_000_000 + 20 * 1_000_000,
+            buy_every: 2_000_000,
+            sell_begin: 9 * 3_600_000_000 + 25 * 1_000_000,
+            sell_every: 3_000_000,
+        },
+        StrategyConfig {
+            name: "D".to_owned(),
+            start_balance: 100_000_000_000.0f64,
+            dca_ratio: 0.1,
+            buy_begin: 9 * 3_600_000_000 + 30 * 1_000_000,
+            buy_every: 2_000_000,
+            sell_begin: 9 * 3_600_000_000 + 35 * 1_000_000,
+            sell_every: 3_000_000,
+        },
+        StrategyConfig {
+            name: "E".to_owned(),
+            start_balance: 100_000_000_000.0f64,
+            dca_ratio: 0.1,
+            buy_begin: 9 * 3_600_000_000 + 40 * 1_000_000,
+            buy_every: 2_000_000,
+            sell_begin: 9 * 3_600_000_000 + 45 * 1_000_000,
+            sell_every: 3_000_000,
+        },
+    ];
+
+    let df = import_parquet("data/kospi_tick.parquet")?;
+    // let df = df.slice(0, 10);
+
+    let mut simulation = SimulationBuilder::new(configs.len(), rec);
+
+    simulation.market.add_ticks(df);
+    for (trader, config) in simulation.traders.iter_mut().zip(configs.into_iter()) {
+        trader.add_strategy(Strategy::new(config));
         trader.report_nav_every(1_000_000);
     }
 
