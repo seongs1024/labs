@@ -7,7 +7,7 @@ mod trader;
 
 use data_loader::import_parquet;
 use simulation_builder::SimulationBuilder;
-use strategy::Strategy;
+use strategy::{Strategy, StrategyConfig};
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 220)]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -29,11 +29,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let df = import_parquet("data/kospi_tick.parquet")?;
     // let df = df.slice(0, 10);
 
-    let mut simulation = SimulationBuilder::new(200, rec);
+    let mut simulation = SimulationBuilder::new(5, rec);
 
     simulation.market.add_ticks(df);
     for trader in simulation.traders.iter_mut() {
-        trader.add_strategy(Strategy::new("Strategy A"));
+        trader.add_strategy(Strategy::new(StrategyConfig {
+            name: "A".to_owned(),
+            start_balance: 100_000_000_000.0f64,
+            dca_ratio: 0.1,
+            buy_begin: 9 * 3_600_000_000,
+            buy_every: 1_000_000,
+            sell_begin: 9 * 3_600_000_000 + 1 * 60_000_000,
+            sell_every: 1_000_000,
+        }));
     }
 
     simulation.run();

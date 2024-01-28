@@ -3,7 +3,7 @@ use crate::{
     market::{MarketEvent, Securities},
     strategy::Strategy,
 };
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{
     broadcast::{self, error::RecvError},
     mpsc,
@@ -53,13 +53,47 @@ impl Trader {
         };
         let sec_codes = self.sec_codes.clone();
         tokio::spawn(async move {
+            let mut stocks_held: HashMap<String, i64> = HashMap::new();
+            let mut cash = strategy.config.start_balance;
+            let mut nav = cash;
+
             loop {
                 match rx.recv().await {
                     Ok(MarketEvent::Tick(tick)) => {
-                        // println!("{}: {:?}", name, tick);
-                        match strategy.buy_signal(&tick, &name, &sec_codes).await {
+                        nav += match stocks_held.get(&tick.code) {
+                            Some(quantity) => (*quantity as f64) * tick.price_change,
+                            None => 0.0,
+                        };
+                        log_tx
+                            .send(Event::Nav(
+                                name.to_string(),
+                                strategy.config.name.to_owned(),
+                                tick.time,
+                                nav,
+                            ))
+                            .await;
+
+                        match strategy.buy_signal(&tick, &name, cash, &sec_codes).await {
                             Some(event) => {
-                                log_tx.send(event).await;
+                                if let Event::OpenOrder(
+                                    ref side,
+                                    ref trader_name,
+                                    ref strategy_name,
+                                    time,
+                                    ref code,
+                                    quantity,
+                                ) = event
+                                {
+                                    stocks_held
+                                        .entry(code.to_owned())
+                                        .and_modify(|held| *held += quantity)
+                                        .or_insert(quantity);
+                                    cash -= {
+                                        let sec_codes = sec_codes.read().await;
+                                        *(*sec_codes).get(code).unwrap() * (quantity as f64)
+                                    };
+                                    log_tx.send(event).await;
+                                }
                             }
                             _ => {}
                         };

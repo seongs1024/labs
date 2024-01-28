@@ -18,6 +18,7 @@ pub struct Tick {
     pub time: i64,
     pub code: String,
     pub price: f64,
+    pub price_change: f64,
 }
 
 pub type Securities = Arc<RwLock<HashMap<String, f64>>>;
@@ -70,11 +71,19 @@ impl Market {
                         todo!()
                     };
 
+                    let price_change = {
+                        let mut sc = sec_codes.read().await;
+                        match (*sc).get(code) {
+                            Some(prev_price) => price - prev_price,
+                            None => 0.0,
+                        }
+                    };
                     let tick = Tick {
                         idx,
                         time,
                         code: code.to_owned(),
                         price,
+                        price_change,
                     };
 
                     // Self::wait_until(&time, &simulation_start, &time_offset).await;

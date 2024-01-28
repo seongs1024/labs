@@ -2,33 +2,37 @@ use crate::{
     logger::{Event, Side},
     market::{Securities, Tick},
 };
-use rand::{rngs::StdRng, seq::IteratorRandom, SeedableRng};
 use std::{
-    collections::HashSet,
-    ops::Not,
+    ops::{Div, Not, Rem},
     sync::{Arc, Mutex},
 };
 
+pub struct StrategyConfig {
+    pub name: String,
+    pub start_balance: f64,
+    pub dca_ratio: f64,
+    pub buy_begin: i64,
+    pub buy_every: i64,
+    pub sell_begin: i64,
+    pub sell_every: i64,
+}
+
 pub struct Strategy {
-    name: String,
-    sec_codes: HashSet<String>,
-    prev_every_30min: i64,
-    prev_every_10min: i64,
+    prev_buy_every: i64,
+    prev_sell_every: i64,
     bought: bool,
     sold: bool,
-    rng: StdRng,
+    pub config: StrategyConfig,
 }
 
 impl Strategy {
-    pub fn new<S: AsRef<str>>(name: S) -> Self {
+    pub fn new(config: StrategyConfig) -> Self {
         Self {
-            name: name.as_ref().to_owned(),
-            sec_codes: HashSet::new(),
-            prev_every_30min: 0,
-            prev_every_10min: 0,
+            prev_buy_every: 0,
+            prev_sell_every: 0,
             bought: false,
             sold: false,
-            rng: StdRng::seed_from_u64(rand::random()),
+            config,
         }
     }
 
@@ -36,38 +40,46 @@ impl Strategy {
         &mut self,
         tick: &Tick,
         trader_name: &str,
+        cash: f64,
         sec_codes: &Securities,
     ) -> Option<Event> {
         let Tick {
             time, code, price, ..
         } = tick;
 
-        let buy_start_on = time - 9 * 3_600_000_000i64;
-        // let every_30min = buy_start_on % (30 * 60_000_000i64);
-        let every_30min = buy_start_on % (100_000i64);
+        let buy_start_on = time - self.config.buy_begin;
+        let buy_every = buy_start_on % self.config.buy_every;
 
-        if buy_start_on >= 0 && every_30min < self.prev_every_30min {
+        if buy_start_on >= 0 && buy_every < self.prev_buy_every {
             self.bought = false;
         }
-        self.prev_every_30min = every_30min;
+        self.prev_buy_every = buy_every;
 
-        if buy_start_on >= 0 && self.bought.not() {
+        let available = cash.min((self.config.start_balance * self.config.dca_ratio).floor());
+        if buy_start_on >= 0 && self.bought.not() && available > 0.0 {
             // buy
-            let candidate = {
+            let (candidate, price) = {
                 let sec_codes = sec_codes.read().await;
-                (*sec_codes)
-                    .keys()
-                    .choose(&mut self.rng)
-                    .unwrap()
-                    .to_owned()
+                let candidates = (*sec_codes)
+                    .iter()
+                    .filter(|(_, price)| price <= &&cash)
+                    .collect::<Vec<_>>();
+                if candidates.len() == 0 {
+                    return None;
+                }
+                let (candidate, price) =
+                    candidates[(rand::random::<usize>().rem(candidates.len()) as usize)];
+                (candidate.to_owned(), *price)
             };
+            let quantity = available.div(price).floor() as i64;
             self.bought = true;
             return Some(Event::OpenOrder(
                 Side::Buy,
                 trader_name.to_owned(),
+                self.config.name.to_owned(),
                 *time,
                 candidate,
-                100.0,
+                quantity,
             ));
         }
 
@@ -84,13 +96,13 @@ impl Strategy {
             time, code, price, ..
         } = tick;
 
-        let sell_start_on = time - (14 * 3_600_000_000i64 + 30 * 60_000_000i64);
-        let every_10min = sell_start_on % (10 * 60_000_000i64);
+        // let sell_start_on = time - (14 * 3_600_000_000i64 + 30 * 60_000_000i64);
+        // let every_10min = sell_start_on % (10 * 60_000_000i64);
 
-        if sell_start_on >= 0 && every_10min < self.prev_every_10min {
-            // sell
-        }
-        self.prev_every_10min = every_10min;
+        // if sell_start_on >= 0 && every_10min < self.prev_every_10min {
+        //     // sell
+        // }
+        // self.prev_every_10min = every_10min;
 
         None
     }

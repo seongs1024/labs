@@ -3,9 +3,9 @@ use tokio::{sync::mpsc::Receiver, task::JoinHandle};
 
 #[derive(Debug)]
 pub enum Event {
-    OpenOrder(Side, String, i64, String, f64), //(Side, trader_id, time, code, quantity)
-    Filled(Side, String, i64, String, f64, f64), //(Side, trader_id, time, code, quantity, price)
-    Nav(String, f64),                          //(trader_id, nav)
+    OpenOrder(Side, String, String, i64, String, i64), //(Side, trader_name, strategy_name, time, code, quantity)
+    Filled(Side, String, String, i64, String, f64, i64), //(Side, trader_name, strategy_name, time, code, quantity, price)
+    Nav(String, String, i64, f64),                       //(trader_name, strategy_name, time, nav)
 }
 
 #[derive(Debug)]
@@ -35,12 +35,19 @@ impl Logger {
         tokio::spawn(async move {
             while let Some(e) = rx.recv().await {
                 match e {
-                    Event::OpenOrder(side, trader_name, time, code, quantity) => {
-                        rec.set_time_nanos("time", time * 1_000);
+                    Event::OpenOrder(side, trader_name, strategy_name, time, code, quantity) => {
+                        rec.set_time_nanos("order", time * 1_000);
                         rec.log(
-                            format!("strategy/{}", trader_name),
-                            &rerun::TimeSeriesScalar::new((time as f64).sin())
-                                .with_label(format!("{:?} {}", side, code)),
+                            format!("strategy_{}/{}", strategy_name, trader_name),
+                            &rerun::TextLog::new(format!("{:?} {}, q: {}", side, code, quantity)),
+                        )
+                        .unwrap();
+                    }
+                    Event::Nav(trader_name, strategy_name, time, nav) => {
+                        rec.set_time_nanos("nav", time * 1_000);
+                        rec.log(
+                            format!("strategy_{}/{}", strategy_name, trader_name),
+                            &rerun::TimeSeriesScalar::new(nav),
                         )
                         .unwrap();
                     }
