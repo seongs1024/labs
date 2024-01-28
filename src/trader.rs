@@ -16,6 +16,7 @@ pub struct Trader {
     strategy: Option<Strategy>,
     rerun: rerun::RecordingStream,
     sec_codes: Securities,
+    report_nav_every: i64,
 }
 
 impl Trader {
@@ -33,11 +34,16 @@ impl Trader {
             strategy: None,
             rerun,
             sec_codes,
+            report_nav_every: 1_000_000,
         }
     }
 
     pub fn add_strategy(&mut self, strategy: Strategy) {
         self.strategy = Some(strategy);
+    }
+
+    pub fn report_nav_every(&mut self, every: i64) {
+        self.report_nav_every = every;
     }
 
     pub fn recv(&mut self) {
@@ -52,10 +58,13 @@ impl Trader {
             todo!()
         };
         let sec_codes = self.sec_codes.clone();
+        let report_nav_every = self.report_nav_every;
+
         tokio::spawn(async move {
             let mut stocks_held: HashMap<String, i64> = HashMap::new();
             let mut cash = strategy.config.start_balance;
             let mut nav = cash;
+            let mut prev_every = 0;
 
             loop {
                 match rx.recv().await {
@@ -64,14 +73,19 @@ impl Trader {
                             Some(quantity) => (*quantity as f64) * tick.price_change,
                             None => 0.0,
                         };
-                        log_tx
-                            .send(Event::Nav(
-                                name.to_string(),
-                                strategy.config.name.to_owned(),
-                                tick.time,
-                                nav,
-                            ))
-                            .await;
+                        
+                        let every = tick.time % report_nav_every;
+                        if every < prev_every {
+                            log_tx
+                                .send(Event::Nav(
+                                    name.to_string(),
+                                    strategy.config.name.to_owned(),
+                                    tick.time,
+                                    nav,
+                                ))
+                                .await;
+                        }
+                        prev_every = every;
 
                         match strategy.buy_signal(&tick, &name, cash, &sec_codes).await {
                             Some(event) => {
