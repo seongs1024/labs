@@ -36,7 +36,7 @@ impl Logger {
             while let Some(e) = rx.recv().await {
                 match e {
                     Event::OpenOrder(side, trader_name, strategy_name, time, code, quantity) => {
-                        rec.set_time_nanos("order", time * 1_000);
+                        rec.set_time_nanos("time", time * 1_000);
                         rec.log(
                             format!("order/{:?}/strategy_{}/{}", side, strategy_name, trader_name),
                             &rerun::TextLog::new(format!("strategy_{}/{} {:?} {}, q: {}", strategy_name, trader_name, side, code, quantity)),
@@ -44,7 +44,7 @@ impl Logger {
                         .unwrap();
                     }
                     Event::Nav(trader_name, strategy_name, time, nav) => {
-                        rec.set_time_nanos("nav", time * 1_000);
+                        rec.set_time_nanos("time", time * 1_000);
                         rec.log(
                             format!("nav/strategy_{}/{}", strategy_name, trader_name),
                             &rerun::TimeSeriesScalar::new(nav),
