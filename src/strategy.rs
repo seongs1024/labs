@@ -8,6 +8,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+#[derive(Clone)]
 pub struct StrategyConfig {
     pub name: String,
     pub start_balance: f64,

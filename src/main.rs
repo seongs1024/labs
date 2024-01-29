@@ -26,53 +26,56 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     })
     .await?;
 
-    let configs = vec![
-        StrategyConfig {
-            name: "A".to_owned(),
-            start_balance: 100_000_000_000.0f64,
-            dca_ratio: 0.1,
-            buy_begin: 9 * 3_600_000_000,
-            buy_every: 2_000_000,
-            sell_begin: 9 * 3_600_000_000 + 5 * 1_000_000,
-            sell_every: 3_000_000,
-        },
-        StrategyConfig {
-            name: "B".to_owned(),
-            start_balance: 100_000_000_000.0f64,
-            dca_ratio: 0.1,
-            buy_begin: 9 * 3_600_000_000 + 10 * 1_000_000,
-            buy_every: 2_000_000,
-            sell_begin: 9 * 3_600_000_000 + 15 * 1_000_000,
-            sell_every: 3_000_000,
-        },
-        StrategyConfig {
-            name: "C".to_owned(),
-            start_balance: 100_000_000_000.0f64,
-            dca_ratio: 0.1,
-            buy_begin: 9 * 3_600_000_000 + 20 * 1_000_000,
-            buy_every: 2_000_000,
-            sell_begin: 9 * 3_600_000_000 + 25 * 1_000_000,
-            sell_every: 3_000_000,
-        },
-        StrategyConfig {
-            name: "D".to_owned(),
-            start_balance: 100_000_000_000.0f64,
-            dca_ratio: 0.1,
-            buy_begin: 9 * 3_600_000_000 + 30 * 1_000_000,
-            buy_every: 2_000_000,
-            sell_begin: 9 * 3_600_000_000 + 35 * 1_000_000,
-            sell_every: 3_000_000,
-        },
-        StrategyConfig {
-            name: "E".to_owned(),
-            start_balance: 100_000_000_000.0f64,
-            dca_ratio: 0.1,
-            buy_begin: 9 * 3_600_000_000 + 40 * 1_000_000,
-            buy_every: 2_000_000,
-            sell_begin: 9 * 3_600_000_000 + 45 * 1_000_000,
-            sell_every: 3_000_000,
-        },
-    ];
+    let configs: Vec<_> = std::iter::repeat(vec![
+            StrategyConfig {
+                name: "A".to_owned(),
+                start_balance: 100_000_000.0f64,
+                dca_ratio: 0.1,
+                buy_begin: 9 * 3_600_000_000,
+                buy_every: 2_000_000,
+                sell_begin: 9 * 3_600_000_000 + 5 * 1_000_000,
+                sell_every: 3_000_000,
+            },
+            StrategyConfig {
+                name: "B".to_owned(),
+                start_balance: 100_000_000.0f64,
+                dca_ratio: 0.1,
+                buy_begin: 9 * 3_600_000_000 + 10 * 1_000_000,
+                buy_every: 2_000_000,
+                sell_begin: 9 * 3_600_000_000 + 15 * 1_000_000,
+                sell_every: 3_000_000,
+            },
+            StrategyConfig {
+                name: "C".to_owned(),
+                start_balance: 100_000_000.0f64,
+                dca_ratio: 0.1,
+                buy_begin: 9 * 3_600_000_000 + 20 * 1_000_000,
+                buy_every: 2_000_000,
+                sell_begin: 9 * 3_600_000_000 + 25 * 1_000_000,
+                sell_every: 3_000_000,
+            },
+            StrategyConfig {
+                name: "D".to_owned(),
+                start_balance: 100_000_000.0f64,
+                dca_ratio: 0.1,
+                buy_begin: 9 * 3_600_000_000 + 30 * 1_000_000,
+                buy_every: 2_000_000,
+                sell_begin: 9 * 3_600_000_000 + 35 * 1_000_000,
+                sell_every: 3_000_000,
+            },
+            StrategyConfig {
+                name: "E".to_owned(),
+                start_balance: 100_000_000.0f64,
+                dca_ratio: 0.1,
+                buy_begin: 9 * 3_600_000_000 + 40 * 1_000_000,
+                buy_every: 2_000_000,
+                sell_begin: 9 * 3_600_000_000 + 45 * 1_000_000,
+                sell_every: 3_000_000,
+            },
+        ])
+        .take(40)
+        .flatten()
+        .collect();
 
     let df = import_parquet("data/kospi_tick.parquet")?;
     // let df = df.slice(0, 10);
@@ -86,8 +89,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     simulation.run();
-    tokio::time::sleep(tokio::time::Duration::from_secs(100)).await;
-    simulation.stop();
+    // tokio::time::sleep(tokio::time::Duration::from_secs(100)).await;
+    // simulation.stop();
+    loop {
+        
+    }
 
     Ok(())
 }
